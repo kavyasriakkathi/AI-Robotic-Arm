@@ -32,9 +32,37 @@ def print_joint_information(robot_id):
     print(f"\nEnd-effector candidate: joint index {end_effector_joint_index}, link name {end_effector_link_name}")
 
 
-def manual_joint_demo(robot_id):
-    """Move a few joints through a small manual position-control demo."""
-    # For this KUKA robot, joints 0 through 6 are the arm joints.
+def add_target(target_position):
+    """Create a visible red sphere to represent the goal target in the scene."""
+    sphere_visual = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=0.05,
+        rgbaColor=[1, 0, 0, 1],
+    )
+    sphere_collision = p.createCollisionShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=0.05,
+    )
+
+    target_id = p.createMultiBody(
+        baseMass=0.0,
+        baseCollisionShapeIndex=sphere_collision,
+        baseVisualShapeIndex=sphere_visual,
+        basePosition=target_position,
+    )
+    print(f"Target added at position {target_position} with body ID {target_id}")
+    return target_id
+
+
+def get_end_effector_position(robot_id):
+    """Return the current end-effector position in world coordinates."""
+    end_effector_index = p.getNumJoints(robot_id) - 1
+    end_effector_state = p.getLinkState(robot_id, end_effector_index, computeForwardKinematics=True)
+    return end_effector_state[0]
+
+
+def manual_joint_demo(robot_id, target_position):
+    """Move a few joints through a small manual position-control demo while printing the target distance."""
     joint_indices = list(range(7))
 
     for joint_index in joint_indices:
@@ -48,11 +76,11 @@ def manual_joint_demo(robot_id):
 
     print("\nStarting a small manual joint-control demonstration...")
     start_time = time.time()
+    last_distance_print = 0.0
 
     while True:
         elapsed = time.time() - start_time
 
-        # These values create a gentle, controlled motion across several joints.
         target_positions = [
             0.25 * math.sin(elapsed * 1.3),
             0.20 * math.cos(elapsed * 1.1),
@@ -71,12 +99,23 @@ def manual_joint_demo(robot_id):
             forces=[200.0] * len(joint_indices),
         )
 
+        end_effector_position = get_end_effector_position(robot_id)
+        distance_to_target = math.dist(target_position, end_effector_position)
+
+        if time.time() - last_distance_print >= 0.5:
+            print(
+                f"End-effector position: {end_effector_position} | "
+                f"target position: {target_position} | "
+                f"distance: {distance_to_target:.3f} m"
+            )
+            last_distance_print = time.time()
+
         p.stepSimulation()
         time.sleep(1.0 / 240.0)
 
 
 def main():
-    """Open a minimal PyBullet GUI, inspect the robot, and then move it manually."""
+    """Open a minimal PyBullet GUI, inspect the robot, add a target, and monitor the arm-to-target distance."""
     physics_client = p.connect(p.GUI)
     if physics_client < 0:
         raise RuntimeError("Could not connect to PyBullet GUI.")
@@ -99,6 +138,10 @@ def main():
     )
     print(f"Robot loaded with body ID: {robot_id}")
 
+    target_position = [0.5, 0.0, 0.5]
+    target_id = add_target(target_position)
+    print(f"Target body ID: {target_id}")
+
     p.resetDebugVisualizerCamera(
         cameraDistance=1.8,
         cameraYaw=45,
@@ -107,10 +150,11 @@ def main():
     )
 
     print_joint_information(robot_id)
-    print("\nThe GUI is open. Watch the robot move as the demo begins.")
+    print("\nThe robot and target are visible in the PyBullet GUI.")
+    print("The arm will move slightly while the terminal prints distance-to-target updates.")
     print("Press Ctrl+C to stop the simulation.")
 
-    manual_joint_demo(robot_id)
+    manual_joint_demo(robot_id, target_position)
 
 
 if __name__ == "__main__":
