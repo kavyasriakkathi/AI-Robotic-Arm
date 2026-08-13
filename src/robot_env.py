@@ -28,12 +28,19 @@ class RobotReachEnv(gym.Env):
         self.ground_id = None
         self.robot_id = None
         self.target_id = None
-        self.target_position = np.array([0.5, 0.0, 0.5], dtype=np.float32)
+        # The original target and base pose were too far apart for a beginner PPO task.
+        # The arm starts from a neutral pose that is much easier to reach from the robot's
+        # actual workspace, while still keeping the same task concept.
+        self.target_position = np.array([0.55, 0.0, 0.8], dtype=np.float32)
         self.distance_threshold = 0.15
         self.max_steps = 200
         self.step_count = 0
         self.last_distance = None
         self.joint_indices = list(range(7))
+        self.initial_joint_positions = np.array(
+            [0.0, -0.6, 0.0, -1.4, 0.0, 1.0, 0.0],
+            dtype=np.float32,
+        )
 
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
@@ -171,6 +178,19 @@ class RobotReachEnv(gym.Env):
         p.setTimeStep(1.0 / 240.0)
 
         self._load_scene()
+
+        # Put the robot in a neutral pose that is genuinely reachable before the agent starts
+        # learning. This prevents the task from starting in an artificially impossible region.
+        for joint_index, joint_position in enumerate(self.initial_joint_positions):
+            p.resetJointState(self.robot_id, joint_index, float(joint_position))
+            p.setJointMotorControl2(
+                bodyUniqueId=self.robot_id,
+                jointIndex=joint_index,
+                controlMode=p.POSITION_CONTROL,
+                targetPosition=float(joint_position),
+                force=200.0,
+            )
+
         self.step_count = 0
         observation = self._get_observation()
         self.last_distance = float(np.linalg.norm(observation[7:10] - observation[10:13]))

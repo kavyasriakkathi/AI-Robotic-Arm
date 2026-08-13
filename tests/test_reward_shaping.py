@@ -44,3 +44,18 @@ def test_reward_is_lower_when_distance_increases_and_higher_when_it_decreases():
         assert "distance_to_target" in info_2
     finally:
         env.close()
+
+
+def test_reset_starts_in_a_reachable_neutral_pose():
+    env = RobotReachEnv(render_mode="direct")
+    try:
+        obs, _ = env.reset(seed=1)
+        end_effector = obs[7:10]
+        target = obs[10:13]
+        initial_distance = _distance(end_effector, target)
+
+        # This task should start in a posture that is not artificially impossible.
+        # The robot must be able to make meaningful progress without a huge random search.
+        assert initial_distance < 0.6
+    finally:
+        env.close()
