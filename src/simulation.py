@@ -61,6 +61,49 @@ def get_end_effector_position(robot_id):
     return end_effector_state[0]
 
 
+def get_joint_positions(robot_id):
+    """Return the current positional values of all joints for a beginner-friendly RL state."""
+    positions = []
+    for joint_index in range(p.getNumJoints(robot_id)):
+        joint_state = p.getJointState(robot_id, joint_index)
+        positions.append(joint_state[0])
+    return positions
+
+
+def get_state_vector(robot_id, target_position):
+    """Create a simple state vector for RL understanding.
+
+    State = [joint positions, end-effector position, target position, distance].
+    This is intentionally simple and readable: the agent sees the robot state and the goal.
+    We are not building a complete Gymnasium environment yet; this is only a conceptual state.
+    """
+    joint_positions = get_joint_positions(robot_id)
+    end_effector_position = get_end_effector_position(robot_id)
+    distance_to_target = math.dist(target_position, end_effector_position)
+
+    state = {
+        "joint_positions": joint_positions,
+        "end_effector_position": end_effector_position,
+        "target_position": target_position,
+        "distance_to_target": distance_to_target,
+    }
+    return state
+
+
+def compute_reward(distance_to_target):
+    """A simple reward concept for a beginner-friendly RL setup.
+
+    - closer target -> higher reward
+    - farther target -> lower reward
+    - reaching the target -> large positive reward
+    """
+    reach_threshold = 0.15
+
+    if distance_to_target <= reach_threshold:
+        return 10.0
+    return -distance_to_target
+
+
 def manual_joint_demo(robot_id, target_position):
     """Move a few joints through a small manual position-control demo while printing the target distance."""
     joint_indices = list(range(7))
@@ -75,6 +118,8 @@ def manual_joint_demo(robot_id, target_position):
         )
 
     print("\nStarting a small manual joint-control demonstration...")
+    print("RL concept preview: state = joint angles + end-effector + target + distance")
+    print("RL concept preview: reward = closer target -> better reward, reaching target -> large positive reward")
     start_time = time.time()
     last_distance_print = 0.0
 
@@ -101,12 +146,19 @@ def manual_joint_demo(robot_id, target_position):
 
         end_effector_position = get_end_effector_position(robot_id)
         distance_to_target = math.dist(target_position, end_effector_position)
+        state = get_state_vector(robot_id, target_position)
+        reward_value = compute_reward(state["distance_to_target"])
 
         if time.time() - last_distance_print >= 0.5:
             print(
                 f"End-effector position: {end_effector_position} | "
                 f"target position: {target_position} | "
-                f"distance: {distance_to_target:.3f} m"
+                f"distance: {distance_to_target:.3f} m | "
+                f"reward: {reward_value:.2f}"
+            )
+            print(
+                f"State preview: joint_positions={state['joint_positions']} | "
+                f"ee={state['end_effector_position']}"
             )
             last_distance_print = time.time()
 
