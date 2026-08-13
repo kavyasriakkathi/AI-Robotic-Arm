@@ -1,13 +1,14 @@
 # AI-Powered Robotic Arm Target Reaching Using Reinforcement Learning
 
-This project is being built step by step. This first step sets up the project folder structure and creates a minimal PyBullet simulation to confirm the environment works before adding the reinforcement learning logic.
+This project is being built step by step. It currently includes a PyBullet robot simulation, a simple Gymnasium environment, and a PPO smoke-test setup to confirm compatibility before any real training begins.
 
 ## Current status
 
 - Basic project structure created
 - PyBullet dependency installed
-- Minimal simulation with ground plane and robot is included
-- RL training code is intentionally not added yet
+- Gymnasium environment created
+- PPO smoke test prepared
+- Full model training is intentionally not started yet
 
 ## Run the simulation
 
@@ -16,13 +17,21 @@ This project is being built step by step. This first step sets up the project fo
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the simulation:
+3. Run the standalone simulation:
    ```bash
    python src/simulation.py
    ```
+4. Or run the PPO smoke test:
+   ```bash
+   .\.venv\Scripts\python.exe src/train.py
+   ```
 
-This will open the PyBullet GUI, load the ground plane, add a simple robotic arm, and keep the simulation running so you can see the robot.
+## Project notes
+
+- `src/simulation.py` is the standalone robot visualization and inspection script.
+- `src/robot_env.py` is the Gymnasium environment for RL interactions.
+- `src/train.py` is intentionally a small PPO compatibility smoke test, not full training.
 
 ## Next steps
 
-The next steps will add the actual environment, reward function, and eventually the RL training code. This step is intentionally limited to setup and visualization only.
+The next steps will add more structured training logic and deeper RL behavior, but this checkpoint focuses only on environment compatibility and smoke testing.
