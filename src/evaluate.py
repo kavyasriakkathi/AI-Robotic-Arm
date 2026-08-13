@@ -9,8 +9,8 @@ from stable_baselines3 import PPO
 from robot_env import RobotReachEnv
 
 
-DEFAULT_MODEL_PATH = os.path.join("models", "ppo_robot_reach_v4.zip")
-DEFAULT_GRAPH_PATH = os.path.join("results", "ppo_robot_reach_v4_distance_vs_step.png")
+DEFAULT_MODEL_PATH = os.path.join("models", "ppo_robot_reach_v5.zip")
+DEFAULT_GRAPH_PATH = os.path.join("results", "ppo_robot_reach_v5_distance_vs_step.png")
 MAX_EVAL_STEPS = 60
 
 
@@ -29,7 +29,8 @@ def evaluate_model(model_path=DEFAULT_MODEL_PATH, graph_path=DEFAULT_GRAPH_PATH)
     model = PPO.load(model_path, env=env)
 
     obs, _ = env.reset(seed=1)
-    initial_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+    # Observation is now 23D: [joint_pos(7), joint_vel(7), ee_pos(3), ee_vel(3), target_pos(3)]
+    initial_distance = float(np.linalg.norm(obs[14:17] - obs[20:23]))
 
     distances = []
     rewards = []
@@ -45,7 +46,8 @@ def evaluate_model(model_path=DEFAULT_MODEL_PATH, graph_path=DEFAULT_GRAPH_PATH)
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
 
-        distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+        # Use the new observation indices for 23D observation
+        distance = float(np.linalg.norm(obs[14:17] - obs[20:23]))
         min_distance = min(min_distance, distance)
         total_reward += float(reward)
         distances.append(distance)

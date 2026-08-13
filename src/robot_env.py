@@ -45,7 +45,7 @@ class RobotReachEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(7 + 3 + 3,),
+            shape=(7 + 7 + 3 + 3 + 3,),
             dtype=np.float32,
         )
 
@@ -60,6 +60,7 @@ class RobotReachEnv(gym.Env):
 
         self.joint_lower_limits = np.array([], dtype=np.float32)
         self.joint_upper_limits = np.array([], dtype=np.float32)
+        self.previous_ee_position = None
 
         self._load_scene()
 
@@ -123,6 +124,11 @@ class RobotReachEnv(gym.Env):
         joint_positions = [p.getJointState(self.robot_id, idx)[0] for idx in self.joint_indices]
         return np.array(joint_positions, dtype=np.float32)
 
+    def _get_joint_velocities(self):
+        """Get the current joint velocities for all 7 robot joints."""
+        joint_velocities = [p.getJointState(self.robot_id, idx)[1] for idx in self.joint_indices]
+        return np.array(joint_velocities, dtype=np.float32)
+
     def _get_end_effector_position(self):
         """Return the end-effector position in world coordinates."""
         end_effector_index = p.getNumJoints(self.robot_id) - 1
@@ -133,14 +139,34 @@ class RobotReachEnv(gym.Env):
         )
         return np.array(end_effector_state[0], dtype=np.float32)
 
+    def _get_end_effector_velocity(self):
+        """Calculate the end-effector velocity from position change.
+        
+        Returns a zero velocity on the first step (when previous_ee_position is None).
+        Otherwise computes velocity as (current - previous) / timestep.
+        """
+        if self.previous_ee_position is None:
+            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        current_ee_position = self._get_end_effector_position()
+        # Timestep is 1/240, so multiply by 240 to get velocity in m/s
+        ee_velocity = (current_ee_position - self.previous_ee_position) * 240.0
+        return ee_velocity.astype(np.float32)
+
     def _get_observation(self):
-        """Observation = [7 joint positions, 3 end-effector coordinates, 3 target coordinates]."""
+        """Observation = [7 joint pos, 7 joint vel, 3 ee pos, 3 ee vel, 3 target pos].
+        
+        Total size: 7 + 7 + 3 + 3 + 3 = 23D
+        """
         joint_positions = self._get_joint_positions()
+        joint_velocities = self._get_joint_velocities()
         end_effector_position = self._get_end_effector_position()
+        ee_velocity = self._get_end_effector_velocity()
         observation = np.concatenate(
             [
                 joint_positions,
+                joint_velocities,
                 end_effector_position,
+                ee_velocity,
                 self.target_position,
             ]
         ).astype(np.float32)
@@ -192,8 +218,10 @@ class RobotReachEnv(gym.Env):
             )
 
         self.step_count = 0
+        self.previous_ee_position = self._get_end_effector_position()
         observation = self._get_observation()
-        self.last_distance = float(np.linalg.norm(observation[7:10] - observation[10:13]))
+        # Distance is between EE position (indices 10:13) and target position (indices 20:23)
+        self.last_distance = float(np.linalg.norm(observation[10:13] - observation[20:23]))
         return observation, {}
 
     def step(self, action):
@@ -208,6 +236,7 @@ class RobotReachEnv(gym.Env):
         p.stepSimulation()
         self.step_count += 1
 
+        self.previous_ee_position = self._get_end_effector_position()
         observation = self._get_observation()
         end_effector_position = self._get_end_effector_position()
         distance_to_target = float(np.linalg.norm(end_effector_position - self.target_position))

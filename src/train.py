@@ -8,7 +8,7 @@ from robot_env import RobotReachEnv
 
 
 MODEL_DIR = "models"
-MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v4")
+MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v5")
 TOTAL_TIMESTEPS = 25000
 EVAL_STEPS = 60
 
@@ -16,7 +16,8 @@ EVAL_STEPS = 60
 def evaluate_model(model, env, max_steps=EVAL_STEPS):
     """Run a short evaluation on the saved PPO policy."""
     obs, _ = env.reset(seed=1)
-    initial_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+    # Observation is now 23D: [joint_pos(7), joint_vel(7), ee_pos(3), ee_vel(3), target_pos(3)]
+    initial_distance = float(np.linalg.norm(obs[14:17] - obs[20:23]))
 
     total_reward = 0.0
     reached = False
@@ -29,7 +30,7 @@ def evaluate_model(model, env, max_steps=EVAL_STEPS):
         total_reward += float(reward)
         step_count += 1
 
-        current_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+        current_distance = float(np.linalg.norm(obs[14:17] - obs[20:23]))
         min_distance = min(min_distance, current_distance)
 
         if info.get("distance_to_target", float("inf")) <= env.distance_threshold:
