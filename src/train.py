@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from stable_baselines3 import PPO
@@ -5,47 +7,84 @@ from stable_baselines3 import PPO
 from robot_env import RobotReachEnv
 
 
+MODEL_DIR = "models"
+MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach")
+TOTAL_TIMESTEPS = 5000
+EVAL_STEPS = 50
+
+
+def evaluate_model(model, env, max_steps=EVAL_STEPS):
+    """Run a short evaluation on the saved PPO policy."""
+    obs, _ = env.reset(seed=1)
+    initial_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+
+    total_reward = 0.0
+    reached = False
+    step_count = 0
+
+    for _ in range(max_steps):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, terminated, truncated, info = env.step(action)
+        total_reward += float(reward)
+        step_count += 1
+
+        if info.get("distance_to_target", float("inf")) <= env.distance_threshold:
+            reached = True
+
+        if terminated or truncated:
+            break
+
+    final_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+
+    print("\nEvaluation summary")
+    print(f"Initial distance to target: {initial_distance:.4f}")
+    print(f"Final distance to target: {final_distance:.4f}")
+    print(f"Total reward: {total_reward:.4f}")
+    print(f"Steps: {step_count}")
+    print(f"Target reached: {reached}")
+
+    return {
+        "initial_distance": initial_distance,
+        "final_distance": final_distance,
+        "total_reward": total_reward,
+        "steps": step_count,
+        "target_reached": reached,
+    }
+
+
 def main():
-    """Tiny Stable-Baselines3 PPO smoke test without full training.
+    """Train a small PPO agent for the robotic arm target-reaching task."""
+    os.makedirs(MODEL_DIR, exist_ok=True)
 
-    This script verifies that:
-    - the Gymnasium environment loads correctly,
-    - the observation and action spaces match PPO expectations,
-    - a PPO model can be instantiated,
-    - a single policy forward pass works on real environment data.
-    """
-    env = RobotReachEnv(render_mode="direct")
+    train_env = RobotReachEnv(render_mode="direct")
+    try:
+        model = PPO(
+            policy="MlpPolicy",
+            env=train_env,
+            n_steps=512,
+            batch_size=64,
+            learning_rate=3e-4,
+            gamma=0.99,
+            verbose=1,
+            device="cpu",
+        )
+        print(f"\nTraining PPO for {TOTAL_TIMESTEPS} timesteps...")
+        model.learn(total_timesteps=TOTAL_TIMESTEPS, progress_bar=False)
+        print(f"\nSaving model to {MODEL_PATH}")
+        model.save(MODEL_PATH)
+    finally:
+        train_env.close()
 
-    obs, info = env.reset(seed=0)
-    print("Observation space:", env.observation_space.shape)
-    print("Action space:", env.action_space.shape)
-    print("Initial observation sample:", np.asarray(obs[:5], dtype=np.float32))
-    print("Reset info:", info)
+    eval_env = RobotReachEnv(render_mode="direct")
+    try:
+        model = PPO.load(MODEL_PATH, env=eval_env)
+        evaluate_model(model, eval_env, max_steps=EVAL_STEPS)
+    finally:
+        eval_env.close()
 
-    action = env.action_space.sample()
-    next_obs, reward, terminated, truncated, step_info = env.step(action)
-    print("Sample action:", np.asarray(action, dtype=np.float32))
-    print("Step reward:", reward)
-    print("Terminated:", terminated)
-    print("Truncated:", truncated)
-    print("Step info keys:", sorted(step_info.keys()))
-
-    model = PPO(
-        policy="MlpPolicy",
-        env=env,
-        n_steps=8,
-        batch_size=8,
-        verbose=0,
-        device="cpu",
-    )
-    print("PPO model created successfully.")
-
-    policy_action, _ = model.predict(obs, deterministic=True)
-    print("PPO policy action shape:", np.asarray(policy_action).shape)
-    print("PPO policy action sample:", np.asarray(policy_action, dtype=np.float32))
-
-    env.close()
-    print("Smoke test complete without training or model saving.")
+    print(f"\nTraining command used: .\\.venv\\Scripts\\python.exe src/train.py")
+    print(f"Number of timesteps: {TOTAL_TIMESTEPS}")
+    print(f"Model file created: {MODEL_PATH}.zip")
 
 
 if __name__ == "__main__":
