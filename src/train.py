@@ -8,9 +8,9 @@ from robot_env import RobotReachEnv
 
 
 MODEL_DIR = "models"
-MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach")
-TOTAL_TIMESTEPS = 5000
-EVAL_STEPS = 50
+MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v2")
+TOTAL_TIMESTEPS = 25000
+EVAL_STEPS = 60
 
 
 def evaluate_model(model, env, max_steps=EVAL_STEPS):
@@ -61,12 +61,13 @@ def main():
         model = PPO(
             policy="MlpPolicy",
             env=train_env,
-            n_steps=512,
-            batch_size=64,
-            learning_rate=3e-4,
+            n_steps=1024,
+            batch_size=128,
+            learning_rate=1e-4,
             gamma=0.99,
             verbose=1,
             device="cpu",
+            policy_kwargs={"net_arch": [64, 64]},
         )
         print(f"\nTraining PPO for {TOTAL_TIMESTEPS} timesteps...")
         model.learn(total_timesteps=TOTAL_TIMESTEPS, progress_bar=False)
