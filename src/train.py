@@ -8,7 +8,7 @@ from robot_env import RobotReachEnv
 
 
 MODEL_DIR = "models"
-MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v2")
+MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v3")
 TOTAL_TIMESTEPS = 25000
 EVAL_STEPS = 60
 
@@ -21,12 +21,16 @@ def evaluate_model(model, env, max_steps=EVAL_STEPS):
     total_reward = 0.0
     reached = False
     step_count = 0
+    min_distance = float("inf")
 
     for _ in range(max_steps):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
         total_reward += float(reward)
         step_count += 1
+
+        current_distance = float(np.linalg.norm(obs[7:10] - obs[10:13]))
+        min_distance = min(min_distance, current_distance)
 
         if info.get("distance_to_target", float("inf")) <= env.distance_threshold:
             reached = True
@@ -39,6 +43,7 @@ def evaluate_model(model, env, max_steps=EVAL_STEPS):
     print("\nEvaluation summary")
     print(f"Initial distance to target: {initial_distance:.4f}")
     print(f"Final distance to target: {final_distance:.4f}")
+    print(f"Minimum distance to target: {min_distance:.4f}")
     print(f"Total reward: {total_reward:.4f}")
     print(f"Steps: {step_count}")
     print(f"Target reached: {reached}")
@@ -46,6 +51,7 @@ def evaluate_model(model, env, max_steps=EVAL_STEPS):
     return {
         "initial_distance": initial_distance,
         "final_distance": final_distance,
+        "min_distance": min_distance,
         "total_reward": total_reward,
         "steps": step_count,
         "target_reached": reached,

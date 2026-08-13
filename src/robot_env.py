@@ -32,6 +32,7 @@ class RobotReachEnv(gym.Env):
         self.distance_threshold = 0.15
         self.max_steps = 200
         self.step_count = 0
+        self.last_distance = None
         self.joint_indices = list(range(7))
 
         self.observation_space = gym.spaces.Box(
@@ -172,6 +173,7 @@ class RobotReachEnv(gym.Env):
         self._load_scene()
         self.step_count = 0
         observation = self._get_observation()
+        self.last_distance = float(np.linalg.norm(observation[7:10] - observation[10:13]))
         return observation, {}
 
     def step(self, action):
@@ -190,9 +192,28 @@ class RobotReachEnv(gym.Env):
         end_effector_position = self._get_end_effector_position()
         distance_to_target = float(np.linalg.norm(end_effector_position - self.target_position))
 
-        reward = -distance_to_target
+        # Dense shaping reward: reward progress toward the target directly.
+        # A smaller distance should produce a higher reward, while moving away should be penalized.
+        previous_distance = self.last_distance if self.last_distance is not None else distance_to_target
+        progress = previous_distance - distance_to_target
+        distance_penalty = 0.5 * distance_to_target
+        away_penalty = 0.8 * max(0.0, -progress)
+
+        # Keep the reward numerically stable and easy to understand for beginners.
+        # The reward is small but dense: we want PPO to feel each useful movement.
+        reward = 2.5 * progress - distance_penalty - away_penalty
+
+        # Extra reward when the end-effector gets close to the target.
+        if distance_to_target <= 0.5:
+            reward += 2.0
+
+        # Clear success bonus when the target is reached.
         if distance_to_target <= self.distance_threshold:
-            reward += 10.0
+            reward += 30.0
+
+        # Clip to a stable range so one bad action does not explode the learning signal.
+        reward = float(np.clip(reward, -15.0, 35.0))
+        self.last_distance = distance_to_target
 
         terminated = bool(distance_to_target <= self.distance_threshold)
         truncated = bool(self.step_count >= self.max_steps)
