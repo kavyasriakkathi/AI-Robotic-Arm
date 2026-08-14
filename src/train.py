@@ -10,7 +10,7 @@ from robot_env import RobotReachEnv
 MODEL_DIR = "models"
 MODEL_PATH = os.path.join(MODEL_DIR, "ppo_robot_reach_v8")
 TOTAL_TIMESTEPS = 100000
-EVAL_STEPS = 60
+EVAL_STEPS = 200
 
 
 def evaluate_model(model, env, max_steps=EVAL_STEPS):

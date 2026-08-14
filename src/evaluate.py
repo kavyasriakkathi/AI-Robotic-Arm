@@ -11,7 +11,7 @@ from robot_env import RobotReachEnv
 
 DEFAULT_MODEL_PATH = os.path.join("models", "ppo_robot_reach_v8.zip")
 DEFAULT_GRAPH_PATH = os.path.join("results", "ppo_robot_reach_v8_distance_vs_step.png")
-MAX_EVAL_STEPS = 60
+MAX_EVAL_STEPS = 200
 
 
 def evaluate_model(model_path=DEFAULT_MODEL_PATH, graph_path=DEFAULT_GRAPH_PATH):
