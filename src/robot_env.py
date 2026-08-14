@@ -248,20 +248,19 @@ class RobotReachEnv(gym.Env):
         distance_penalty = 0.5 * distance_to_target
         away_penalty = 0.8 * max(0.0, -progress)
 
-        # Keep the reward numerically stable and easy to understand for beginners.
-        # The reward is small but dense: we want PPO to feel each useful movement.
-        reward = 2.5 * progress - distance_penalty - away_penalty
+        # Continuous precision bonus to break 0.25-0.30m plateau:
+        # Increases smoothly as distance drops below 0.5m.
+        precision_bonus = 4.0 * max(0.0, 0.5 - distance_to_target)
 
-        # Extra reward when the end-effector gets close to the target.
-        if distance_to_target <= 0.5:
-            reward += 2.0
+        # Boost progress gradient to reward small corrective movements near target
+        reward = 4.0 * progress - distance_penalty - away_penalty + precision_bonus
 
         # Clear success bonus when the target is reached.
         if distance_to_target <= self.distance_threshold:
             reward += 30.0
 
         # Clip to a stable range so one bad action does not explode the learning signal.
-        reward = float(np.clip(reward, -15.0, 35.0))
+        reward = float(np.clip(reward, -15.0, 40.0))
         self.last_distance = distance_to_target
 
         terminated = bool(distance_to_target <= self.distance_threshold)

@@ -9,8 +9,8 @@ from stable_baselines3 import PPO
 from robot_env import RobotReachEnv
 
 
-DEFAULT_MODEL_PATH = os.path.join("models", "ppo_robot_reach_v5.zip")
-DEFAULT_GRAPH_PATH = os.path.join("results", "ppo_robot_reach_v5_distance_vs_step.png")
+DEFAULT_MODEL_PATH = os.path.join("models", "ppo_robot_reach_v8.zip")
+DEFAULT_GRAPH_PATH = os.path.join("results", "ppo_robot_reach_v8_distance_vs_step.png")
 MAX_EVAL_STEPS = 60
 
 
